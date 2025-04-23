@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Illuminate\View\View;
 use App\Models\Wallet;
+use Illuminate\Support\Facades\DB;
+use Exception;
 
 class RegisteredUserController extends Controller
 {
@@ -31,26 +33,46 @@ class RegisteredUserController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
+            'document' => ['required', 'string', 'max:20', 'unique:'.User::class],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
+        // Inicia uma transação de banco de dados
+        DB::beginTransaction();
 
-        Wallet::create([
-            'user_id' => $user->id,
-            'balance' => 0,
-        ]);
+        try {
+            $user = User::create([
+                'first_name' => $request->first_name,
+                'last_name' => $request->last_name,
+                'name' => $request->first_name . ' ' . $request->last_name,
+                'document' => $request->document,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+            ]);
 
-        event(new Registered($user));
+            Wallet::create([
+                'user_id' => $user->id,
+                'balance' => 0,
+            ]);
 
-        Auth::login($user);
+            // Se tudo ocorrer bem, confirma a transação
+            DB::commit();
 
-        return redirect(route('dashboard', absolute: false));
+            event(new Registered($user));
+            Auth::login($user);
+
+            return redirect(route('dashboard', absolute: false));
+
+        } catch (Exception $e) {
+            // Em caso de erro, reverte a transação
+            DB::rollBack();
+            
+            return back()->withInput()->withErrors([
+                'error' => 'Ocorreu um erro durante o registro. Por favor, tente novamente.'
+            ]);
+        }
     }
 }
