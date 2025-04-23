@@ -48,7 +48,7 @@
             </div>
         @endforelse
     </div>
-    @if($transactions->count() > 0)
+    @if(isset($recentTransactions) && count($recentTransactions) > 0)
         <div class="p-4 border-t border-gray-200 text-center">
             <a href="{{ route('transactions.index') }}" class="text-indigo-600 hover:text-indigo-900 font-medium">
                 Ver todas as transações
@@ -56,3 +56,7 @@
         </div>
     @endif
 </div>
+
+<script>
+    console.log(@json($transactions));
+</script>

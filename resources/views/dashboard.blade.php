@@ -12,6 +12,7 @@
             <x-balance-card :balance="$balance" />
 
             <!-- Lista de Transações -->
+            <x-transaction-list :transactions="$transactions" />
         </div>
     </div>
 </x-app-layout>

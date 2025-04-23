@@ -9,17 +9,24 @@ use Illuminate\View\Component;
 class TransactionList extends Component
 {
     /**
+     * Recent transactions data.
+     */
+    public $transactions;
+
+    /**
      * Create a new component instance.
      */
-    public function __construct()
+    public function __construct($transactions)
     {
-        //
+
+        $this->transactions = $transactions;
+
     }
 
     /**
      * Get the view / contents that represent the component.
      */
-    public function render(): View|Closure|string
+    public function render()
     {
         return view('components.transaction-list');
     }
