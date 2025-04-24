@@ -4,22 +4,21 @@ namespace App\Http\Controllers;
 
 use App\Models\Transaction;
 use Illuminate\Support\Facades\Auth;
+use App\Services\TransactionService;
 
 class DashboardController extends Controller
 {
+
+    public function __construct(
+        private TransactionService $transactionService
+    ) {}
+
     public function index()
     {
-        $user = \Auth::user(); // Ensure correct usage of the auth helper
+        $user = \Auth::user();
 
         $balance = $user->wallet->balance;
-        $recentTransactions = Transaction::where(function($query) use ($user) {
-            $query->where('sender_id', $user->id)
-                  ->orWhere('receiver_id', $user->id);
-        })
-        ->with(['receiver', 'sender'])
-        ->latest()
-        ->take(5)
-        ->get();
+        $recentTransactions = $this->transactionService->getRecentTransactions($user);
 
         return view('dashboard', [
             'balance' => $balance,

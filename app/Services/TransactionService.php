@@ -87,7 +87,7 @@ class TransactionService
     {
 
         $transaction = Transaction::findOrFail($reverseDto->getTransactionId());
-        
+
         if ($transaction->sender_id !== Auth::id()) {
             abort(403, 'Você não tem permissão para reverter esta transação');
         }
@@ -112,6 +112,33 @@ class TransactionService
             DB::rollBack();
             throw $e;
         }
+    }
+
+    public function getAvailableUsers($userId)
+    {
+        return User::where('id', '!=', $userId)->get();
+    }
+
+    public function getTransactions($userId)
+    {
+        return Transaction::where('sender_id', $userId)
+            ->orWhere('receiver_id', $userId)
+            ->with(['sender', 'receiver'])
+            ->latest()
+            ->paginate(10);
+    }
+
+    public function getRecentTransactions($user){
+
+        return Transaction::where(function($query) use ($user) {
+            $query->where('sender_id', $user->id)
+                  ->orWhere('receiver_id', $user->id);
+        })
+        ->with(['receiver', 'sender'])
+        ->latest()
+        ->take(5)
+        ->get();
+
     }
 
 }

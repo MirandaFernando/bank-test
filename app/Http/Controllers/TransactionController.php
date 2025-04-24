@@ -6,8 +6,6 @@ use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Exceptions\InvalidTransactionStatusException;
-use Illuminate\Support\Facades\DB;
 use App\Services\TransactionService;
 use App\DTOs\DepositDTO;
 use App\DTOs\TransferDto;
@@ -15,12 +13,12 @@ use App\DTOs\ReverseDto;
 
 class TransactionController extends Controller
 {
-    
+
     public function __construct(
         private TransactionService $transactionService
     ) {}
 
-    
+
     public function showDepositForm()
     {
         return view('transactions.deposit');
@@ -42,9 +40,10 @@ class TransactionController extends Controller
 
     public function showTransferForm()
     {
-        return view('transactions.transfer', [
-            'users' => User::where('id', '!=', Auth::id())->get()
-        ]);
+        $users = $this->transactionService->getAvailableUsers(Auth::id());
+
+        return view('transactions.transfer', compact('users'));
+
     }
 
     public function transfer(Request $request)
@@ -65,11 +64,7 @@ class TransactionController extends Controller
 
     public function index()
     {
-        $transactions = Transaction::where('sender_id', Auth::id())
-            ->orWhere('receiver_id', Auth::id())
-            ->with(['sender', 'receiver'])
-            ->latest()
-            ->paginate(10);
+        $transactions = $this->transactionService->getTransactions(Auth::id());
 
         return view('transactions.index', compact('transactions'));
     }
@@ -87,4 +82,5 @@ class TransactionController extends Controller
         return redirect()->route('transactions.index')
             ->with('success', 'Transação revertida com sucesso!');
     }
+
 }

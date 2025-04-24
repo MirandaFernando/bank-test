@@ -7,6 +7,8 @@ use App\Repositories\Transacation\TransactionRepositoryInterface;
 use App\Repositories\Transacation\TransactionRepository;
 use App\Repositories\Wallet\WalletRepositoryInterface;
 use App\Repositories\Wallet\WalletRepository;
+use App\Repositories\User\UserRepositoryInterface;
+use App\Repositories\User\UserRepository;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -23,6 +25,11 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             WalletRepositoryInterface::class,
             WalletRepository::class
+        );
+
+        $this->app->bind(
+            UserRepositoryInterface::class,
+            UserRepository::class
         );
     }
 
