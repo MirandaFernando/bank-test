@@ -14,7 +14,7 @@ class Transaction extends Model
     const STATUS_PENDING = 'pending';
 
     protected $fillable = [
-        'amount', 'type', 'status', 'sender_id', 'receiver_id', 'reversed_at'
+        'amount', 'type', 'status', 'sender_id', 'receiver_id', 'reversed_at', 'wallet_id'
     ];
 
     public function sender()
@@ -25,5 +25,10 @@ class Transaction extends Model
     public function receiver()
     {
         return $this->belongsTo(User::class, 'receiver_id');
+    }
+
+    public function wallet()
+    {
+        return $this->belongsTo(Wallet::class, 'wallet_id');
     }
 }

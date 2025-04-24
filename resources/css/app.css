@@ -3,12 +3,10 @@
 @tailwind utilities;
 
 
-/* Transições suaves para hover */
 .transaction-item {
     transition: background-color 0.2s ease;
 }
 
-/* Animação para valores */
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(5px); }
     to { opacity: 1; transform: translateY(0); }
@@ -16,4 +14,12 @@
 
 .transaction-enter {
     animation: fadeIn 0.3s ease-out;
+}
+
+/* Adicione isso ao seu arquivo app.css */
+.fade-enter-active, .fade-leave-active {
+    transition: opacity 150ms ease-out;
+}
+.fade-enter-from, .fade-leave-to {
+    opacity: 0;
 }
