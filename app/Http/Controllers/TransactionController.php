@@ -8,11 +8,21 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Exceptions\InvalidTransactionStatusException;
 use Illuminate\Support\Facades\DB;
+use App\Services\TransactionService;
+use App\DTOs\DepositDTO;
+use App\DTOs\TransferDto;
+use App\DTOs\ReverseDto;
 
 class TransactionController extends Controller
 {
+    
+    public function __construct(
+        private TransactionService $transactionService
+    ) {}
+
+    
     public function showDepositForm()
-    {;
+    {
         return view('transactions.deposit');
     }
 
@@ -22,25 +32,14 @@ class TransactionController extends Controller
             'amount' => 'required|numeric|min:0.01',
         ]);
 
-        $user = Auth::user();
-        $amount = $request->amount;
+        $depositDTO = new DepositDTO($request->amount);
 
-        Transaction::create([
-            'amount' => $amount,
-            'type' => Transaction::TYPE_DEPOSIT,
-            'status' => Transaction::STATUS_COMPLETED,
-            'sender_id' => $user->id,
-            'receiver_id' => $user->id,
-            'wallet_id' => $user->wallet->id,
-        ]);
-
-        $user->wallet->increment('balance', $amount);
+        $this->transactionService->deposit($depositDTO);
 
         return redirect()->route('dashboard')
             ->with('success', 'Depósito realizado com sucesso!');
     }
 
-    // Mostrar formulário de transferência
     public function showTransferForm()
     {
         return view('transactions.transfer', [
@@ -48,7 +47,6 @@ class TransactionController extends Controller
         ]);
     }
 
-    // Processar transferência
     public function transfer(Request $request)
     {
         $request->validate([
@@ -56,33 +54,15 @@ class TransactionController extends Controller
             'receiver_id' => 'required|exists:users,id',
         ]);
 
-        $sender = Auth::user();
-        $receiver = User::find($request->receiver_id);
-        $amount = $request->amount;
+        $transferDto = new TransferDto($request->amount, $request->receiver_id);
 
-        // Verificar saldo suficiente
-        if ($sender->wallet->balance < $amount) {
-            return back()->with('error', 'Saldo insuficiente para a transferência.');
-        }
-
-        Transaction::create([
-            'amount' => $amount,
-            'type' => Transaction::TYPE_TRANSFER,
-            'status' => Transaction::STATUS_COMPLETED,
-            'sender_id' => $sender->id,
-            'receiver_id' => $receiver->id,
-            'wallet_id' => $sender->wallet->id,
-        ]);
-
-        // Atualizar saldos
-        $sender->wallet->decrement('balance', $amount);
-        $receiver->wallet->increment('balance', $amount);
+        $this->transactionService->transfer($transferDto);
 
         return redirect()->route('dashboard')
             ->with('success', 'Transferência realizada com sucesso!');
     }
 
-    // Listar todas as transações
+
     public function index()
     {
         $transactions = Transaction::where('sender_id', Auth::id())
@@ -100,32 +80,9 @@ class TransactionController extends Controller
             'transaction_id' => 'required|exists:transactions,id',
         ]);
 
-        $transaction = Transaction::findOrFail($request->transaction_id);
-        
-        // Verifica se o usuário tem permissão para reverter
-        if ($transaction->sender_id !== Auth::id()) {
-            abort(403, 'Você não tem permissão para reverter esta transação');
-        }
+        $reverseDto = new ReverseDto($request->transaction_id);
 
-        if ($transaction->status !== Transaction::STATUS_COMPLETED) {
-            throw new InvalidTransactionStatusException('Apenas transações concluídas podem ser revertidas');
-        }
-
-        DB::transaction(function () use ($transaction) {
-            if ($transaction->type === Transaction::TYPE_TRANSFER) {
-                // Reverte transferência
-                $transaction->sender->wallet->increment('balance', $transaction->amount);
-                $transaction->receiver->wallet->decrement('balance', $transaction->amount);
-            } elseif ($transaction->type === Transaction::TYPE_DEPOSIT) {
-                // Reverte depósito
-                $transaction->receiver->wallet->decrement('balance', $transaction->amount);
-            }
-
-            $transaction->update([
-                'status' => Transaction::STATUS_REVERSED,
-                'reversed_at' => now()
-            ]);
-        });
+        $this->transactionService->reverse($reverseDto);
 
         return redirect()->route('transactions.index')
             ->with('success', 'Transação revertida com sucesso!');
