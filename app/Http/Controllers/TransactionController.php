@@ -18,7 +18,6 @@ class TransactionController extends Controller
         private TransactionService $transactionService
     ) {}
 
-
     public function showDepositForm()
     {
         return view('transactions.deposit');
@@ -31,11 +30,15 @@ class TransactionController extends Controller
         ]);
 
         $depositDTO = new DepositDTO($request->amount);
+        try {
+            $this->transactionService->deposit($depositDTO);
 
-        $this->transactionService->deposit($depositDTO);
-
-        return redirect()->route('dashboard')
-            ->with('success', 'Depósito realizado com sucesso!');
+            return redirect()->route('dashboard')
+                ->with('success', 'Depósito realizado com sucesso!');
+        } catch (\Exception $e) {
+            return redirect()->route('dashboard')
+                ->with('error', 'Erro ao realizar o depósito: ' . $e->getMessage());
+        }
     }
 
     public function showTransferForm()
@@ -43,7 +46,6 @@ class TransactionController extends Controller
         $users = $this->transactionService->getAvailableUsers(Auth::id());
 
         return view('transactions.transfer', compact('users'));
-
     }
 
     public function transfer(Request $request)
@@ -55,18 +57,27 @@ class TransactionController extends Controller
 
         $transferDto = new TransferDto($request->amount, $request->receiver_id);
 
-        $this->transactionService->transfer($transferDto);
+        try {
+            $this->transactionService->transfer($transferDto);
 
-        return redirect()->route('dashboard')
-            ->with('success', 'Transferência realizada com sucesso!');
+            return redirect()->route('dashboard')
+                ->with('success', 'Transferência realizada com sucesso!');
+        } catch (\Exception $e) {
+            return redirect()->route('dashboard')
+                ->with('error', 'Erro ao realizar a transferência: ' . $e->getMessage());
+        }
     }
-
 
     public function index()
     {
-        $transactions = $this->transactionService->getTransactions(Auth::id());
+        try {
+            $transactions = $this->transactionService->getTransactions(Auth::id());
 
-        return view('transactions.index', compact('transactions'));
+            return view('transactions.index', compact('transactions'));
+        } catch (\Exception $e) {
+            return redirect()->route('dashboard')
+                ->with('error', 'Erro ao carregar as transações: ' . $e->getMessage());
+        }
     }
 
     public function reverse(Request $request)
@@ -77,10 +88,14 @@ class TransactionController extends Controller
 
         $reverseDto = new ReverseDto($request->transaction_id);
 
-        $this->transactionService->reverse($reverseDto);
+        try {
+            $this->transactionService->reverse($reverseDto);
 
-        return redirect()->route('transactions.index')
-            ->with('success', 'Transação revertida com sucesso!');
+            return redirect()->route('transactions.index')
+                ->with('success', 'Transação revertida com sucesso!');
+        } catch (\Exception $e) {
+            return redirect()->route('transactions.index')
+                ->with('error', 'Erro ao reverter a transação: ' . $e->getMessage());
+        }
     }
-
 }
