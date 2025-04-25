@@ -10,8 +10,11 @@ use App\DTOs\DepositDTO;
 use App\DTOs\TransferDto;
 use Exception;
 use App\DTOs\ReverseDto;
+use App\Exceptions\AlreadyReversedException;
+use App\Exceptions\InsufficientFundsException;
 use App\Repositories\Transacation\TransactionRepositoryInterface;
 use App\Repositories\Wallet\WalletRepositoryInterface;
+use Illuminate\Validation\UnauthorizedException;
 
 class TransactionService
 {
@@ -54,17 +57,17 @@ class TransactionService
     public function transfer(TransferDto $transferDto)
     {
         $sender = Auth::user();
-        $receiver = User::find($transferDto->getReceiverId());
+        $receiver = $this->transactionRepository->findUserById($transferDto->getReceiverId());
         $amount = $transferDto->getAmount();
 
         DB::beginTransaction();
 
         try {
             if ($sender->wallet->balance < $amount) {
-                throw new Exception('Saldo insuficiente para a transferência.');
+                throw new InsufficientFundsException();
             }
 
-            Transaction::create([
+            $this->transactionRepository->createTransaction([
                 'amount' => $amount,
                 'type' => Transaction::TYPE_TRANSFER,
                 'status' => Transaction::STATUS_COMPLETED,
@@ -85,21 +88,25 @@ class TransactionService
 
     public function reverse(ReverseDto $reverseDto): void
     {
-
-        $transaction = Transaction::findOrFail($reverseDto->getTransactionId());
+        $transaction = $this->transactionRepository->findById($reverseDto->getTransactionId());
 
         if ($transaction->sender_id !== Auth::id()) {
-            abort(403, 'Você não tem permissão para reverter esta transação');
+            throw new UnauthorizedException();
+        }
+
+        if ($transaction->status === Transaction::STATUS_REVERSED) {
+            throw new AlreadyReversedException();
         }
 
         DB::beginTransaction();
 
         try {
+            $this->validateReverseTransaction($transaction);
+
             if ($transaction->type === Transaction::TYPE_TRANSFER) {
-                $transaction->sender->wallet->increment('balance', $transaction->amount);
-                $transaction->receiver->wallet->decrement('balance', $transaction->amount);
+                $this->reverseTransfer($transaction);
             } elseif ($transaction->type === Transaction::TYPE_DEPOSIT) {
-                $transaction->receiver->wallet->decrement('balance', $transaction->amount);
+                $this->reverseDeposit($transaction);
             }
 
             $transaction->update([
@@ -112,6 +119,25 @@ class TransactionService
             DB::rollBack();
             throw $e;
         }
+    }
+
+    private function validateReverseTransaction(Transaction $transaction): void
+    {
+        if ($transaction->type === Transaction::TYPE_DEPOSIT &&
+            $transaction->receiver->wallet->balance < $transaction->amount) {
+            throw new InsufficientFundsException();
+        }
+    }
+
+    private function reverseTransfer(Transaction $transaction): void
+    {
+        $transaction->sender->wallet->increment('balance', $transaction->amount);
+        $transaction->receiver->wallet->decrement('balance', $transaction->amount);
+    }
+
+    private function reverseDeposit(Transaction $transaction): void
+    {
+        $transaction->receiver->wallet->decrement('balance', $transaction->amount);
     }
 
     public function getAvailableUsers($userId)

@@ -23,7 +23,6 @@ class Transaction extends Model
 
     public function getUserId()
     {
-        // Assuming the user ID is stored in the sender_id field
         return $this->sender_id;
     }
 
