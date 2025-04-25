@@ -1,61 +1,88 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Laravel 12 com Docker - Guia de Execução
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Este README explica como configurar e executar uma aplicação Laravel 12 usando Docker, incluindo o banco de dados MySQL e os assets front-end.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 📋 Pré-requisitos
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- **Docker** instalado ([Download Docker](https://www.docker.com/))
+- **Docker Compose** (geralmente incluso no Docker Desktop)
+- **Git** (opcional, para clonar o projeto)
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## 🚀 Configuração Inicial
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+### 1. Clone o projeto (se aplicável)
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+```bash
+git clone [seu-repositorio.git]
+cd [nome-do-projeto]
+```
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### 2. Configure as variáveis de ambiente
 
-## Laravel Sponsors
+Crie/edite o arquivo `.env` na raiz do projeto com as seguintes configurações mínimas:
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+```env
+APP_ENV=local
+APP_KEY=base64:... # Gerado automaticamente via `php artisan key:generate`
+APP_DEBUG=true
 
-### Premium Partners
+DB_CONNECTION=mysql
+DB_HOST=mysql         # Nome do serviço no docker-compose.yml
+DB_PORT=3306
+DB_DATABASE=db_dev    # Deve corresponder ao MYSQL_DATABASE no docker-compose
+DB_USERNAME=root      # Deve corresponder ao MYSQL_ROOT_USER
+DB_PASSWORD=root      # Deve corresponder ao MYSQL_ROOT_PASSWORD
+```
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development/)**
-- **[Active Logic](https://activelogic.com)**
+> ⚠️ **Atenção**:
+> - `DB_HOST` deve ser `mysql` (nome do serviço no Docker Compose).
+> - As credenciais do MySQL devem corresponder às definidas no `docker-compose.yml`.
 
-## Contributing
+---
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## 🐳 Executando com Docker
 
-## Code of Conduct
+### 1. Construa e inicie os containers
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```bash
+docker-compose up -d --build
+```
 
-## Security Vulnerabilities
+Isso criará e iniciará:
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+- Um container Laravel (PHP 8.2 + NPM)
+- Um container MySQL 8.0
 
-## License
+### 2. Execute as migrações
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Após os containers estarem rodando, execute:
+
+```bash
+docker exec -it laravel_app php artisan migrate
+```
+
+💡 **Dica**: Se ocorrer um erro, verifique se o MySQL já está totalmente inicializado (pode levar alguns segundos).
+
+### 3. Acesse a aplicação
+
+- **Laravel (PHP Artisan Serve)**: [http://localhost:8000](http://localhost:8000)
+- **Vite (Hot Reload)**: [http://localhost:5173](http://localhost:5173) (se estiver usando `npm run dev`)
+
+---
+
+## 🔧 Comandos Úteis
+
+| Comando                                      | Descrição                                      |
+|----------------------------------------------|------------------------------------------------|
+| `docker-compose up -d`                       | Inicia os containers em segundo plano         |
+| `docker-compose down`                        | Para e remove os containers                   |
+| `docker-compose logs`                        | Mostra os logs dos serviços                   |
+| `docker exec -it laravel_app bash`           | Acessa o terminal do container Laravel        |
+| `docker exec -it laravel_app php artisan [comando]` | Executa comandos Artisan (ex: `migrate`, `make:controller`) |
+| `docker exec -it laravel_app npm run dev`    | Compila os assets front-end (Vite)            |
+
+--- 
