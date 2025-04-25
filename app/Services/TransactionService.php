@@ -147,23 +147,12 @@ class TransactionService
 
     public function getTransactions($userId)
     {
-        return Transaction::where('sender_id', $userId)
-            ->orWhere('receiver_id', $userId)
-            ->with(['sender', 'receiver'])
-            ->latest()
-            ->paginate(10);
+        return $this->transactionRepository->getTransactions($userId);
     }
 
     public function getRecentTransactions($user){
 
-        return Transaction::where(function($query) use ($user) {
-            $query->where('sender_id', $user->id)
-                  ->orWhere('receiver_id', $user->id);
-        })
-        ->with(['receiver', 'sender'])
-        ->latest()
-        ->take(5)
-        ->get();
+        return $this->transactionRepository->getRecentTransactions($user);
 
     }
 
