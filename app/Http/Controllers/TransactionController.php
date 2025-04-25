@@ -89,10 +89,10 @@ class TransactionController extends Controller
         try {
             $this->transactionService->reverse($reverseDto);
 
-            return redirect()->route('transactions.index')
+            return redirect()->route('dashboard')
                 ->with('success', 'Transação revertida com sucesso!');
         } catch (\Exception $e) {
-            return redirect()->route('transactions.index')
+            return redirect()->route('dashboard')
                 ->with('error', 'Erro ao reverter a transação: ' . $e->getMessage());
         }
     }
