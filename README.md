@@ -1,6 +1,6 @@
 # Laravel 12 com Docker - Guia de Execução
 
-Este README explica como configurar e executar uma aplicação Laravel 12 usando Docker, incluindo o banco de dados MySQL e os assets front-end.
+Este README explica como configurar e executar uma aplicação Laravel 12 usando Docker, incluindo o banco de dados MySQL, os assets front-end, logs e testes unitários.
 
 ---
 
@@ -23,13 +23,9 @@ cd [nome-do-projeto]
 
 ### 2. Configure as variáveis de ambiente
 
-Crie/edite o arquivo `.env` na raiz do projeto com as seguintes configurações mínimas:
+Crie/edite o arquivo `.env` na raiz do projeto com as configurações do `.env.example`:
 
 ```env
-APP_ENV=local
-APP_KEY=base64:... # Gerado automaticamente via `php artisan key:generate`
-APP_DEBUG=true
-
 DB_CONNECTION=mysql
 DB_HOST=mysql         # Nome do serviço no docker-compose.yml
 DB_PORT=3306
@@ -74,6 +70,32 @@ docker exec -it laravel_app php artisan migrate
 
 ---
 
+## 🛠️ Logs
+
+Os logs da aplicação Laravel podem ser acessados diretamente no container. Para visualizar os logs:
+
+```bash
+docker exec -it laravel_app tail -f storage/logs/laravel.log
+```
+
+💡 **Dica**: Use `Ctrl+C` para sair do modo de visualização contínua.
+
+---
+
+## 🧪 Testes Unitários
+
+### Executando os testes
+
+Para rodar os testes unitários da aplicação, utilize o seguinte comando:
+
+```bash
+docker exec -it laravel_app php artisan test
+```
+
+💡 **Dica**: Certifique-se de que as migrações e o ambiente de teste estão configurados corretamente antes de executar os testes.
+
+---
+
 ## 🔧 Comandos Úteis
 
 | Comando                                      | Descrição                                      |
@@ -84,5 +106,7 @@ docker exec -it laravel_app php artisan migrate
 | `docker exec -it laravel_app bash`           | Acessa o terminal do container Laravel        |
 | `docker exec -it laravel_app php artisan [comando]` | Executa comandos Artisan (ex: `migrate`, `make:controller`) |
 | `docker exec -it laravel_app npm run dev`    | Compila os assets front-end (Vite)            |
+| `docker exec -it laravel_app tail -f storage/logs/laravel.log` | Visualiza os logs da aplicação Laravel        |
+| `docker exec -it laravel_app php artisan test` | Executa os testes unitários                  |
 
 --- 
