@@ -6,6 +6,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\DTOs\DepositDTO;
 use App\DTOs\TransferDto;
 use Exception;
@@ -18,7 +19,6 @@ use Illuminate\Validation\UnauthorizedException;
 
 class TransactionService
 {
-
     public function __construct(
         private TransactionRepositoryInterface $transactionRepository,
         private WalletRepositoryInterface $walletRepository
@@ -49,6 +49,14 @@ class TransactionService
 
             DB::commit();
         } catch (Exception $e) {
+            Log::channel('transactions')->error('Falha ao realizar depósito', [
+                'user_id' => $user->id,
+                'amount' => $amount,
+                'error' => $e->getMessage(),
+                'stack_trace' => $e->getTraceAsString(),
+                'operation' => 'deposit'
+            ]);
+
             DB::rollBack();
             throw $e;
         }
@@ -64,10 +72,16 @@ class TransactionService
 
         try {
             if ($sender->wallet->balance < $amount) {
+                Log::channel('transactions')->warning('Saldo insuficiente para transferência', [
+                    'sender_id' => $sender->id,
+                    'current_balance' => $sender->wallet->balance,
+                    'attempted_amount' => $amount,
+                    'operation' => 'transfer'
+                ]);
                 throw new InsufficientFundsException();
             }
 
-            $this->transactionRepository->createTransaction([
+            $transaction = $this->transactionRepository->createTransaction([
                 'amount' => $amount,
                 'type' => Transaction::TYPE_TRANSFER,
                 'status' => Transaction::STATUS_COMPLETED,
@@ -81,6 +95,15 @@ class TransactionService
 
             DB::commit();
         } catch (Exception $e) {
+            Log::channel('transactions')->error('Falha ao realizar transferência', [
+                'sender_id' => $sender->id,
+                'receiver_id' => $receiver?->id,
+                'amount' => $amount,
+                'error' => $e->getMessage(),
+                'stack_trace' => $e->getTraceAsString(),
+                'operation' => 'transfer'
+            ]);
+
             DB::rollBack();
             throw $e;
         }
@@ -89,8 +112,9 @@ class TransactionService
     public function reverse(ReverseDto $reverseDto): void
     {
         $transaction = $this->transactionRepository->findById($reverseDto->getTransactionId());
+        $user = Auth::user();
 
-        if ($transaction->sender_id !== Auth::id()) {
+        if ($transaction->sender_id !== $user->id) {
             throw new UnauthorizedException();
         }
 
@@ -116,6 +140,14 @@ class TransactionService
 
             DB::commit();
         } catch (Exception $e) {
+            Log::channel('transactions')->error('Falha ao reverter transação', [
+                'transaction_id' => $transaction->id,
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'stack_trace' => $e->getTraceAsString(),
+                'operation' => 'reverse'
+            ]);
+
             DB::rollBack();
             throw $e;
         }
@@ -133,10 +165,12 @@ class TransactionService
     {
         $transaction->sender->wallet->increment('balance', $transaction->amount);
         $transaction->receiver->wallet->decrement('balance', $transaction->amount);
+
     }
 
     private function reverseDeposit(Transaction $transaction): void
     {
+        $oldBalance = $transaction->receiver->wallet->balance;
         $transaction->receiver->wallet->decrement('balance', $transaction->amount);
     }
 
@@ -150,10 +184,8 @@ class TransactionService
         return $this->transactionRepository->getTransactions($userId);
     }
 
-    public function getRecentTransactions($user){
-
+    public function getRecentTransactions($user)
+    {
         return $this->transactionRepository->getRecentTransactions($user);
-
     }
-
 }
