@@ -12,6 +12,7 @@ use App\Services\TransactionService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
+use Mockery;
 
 class TransactionServiceTest extends TestCase
 {
@@ -60,4 +61,44 @@ class TransactionServiceTest extends TestCase
 
         $service->deposit($depositDTO);
     }
+
+    public function testTransferSuccess()
+    {
+        $transferDTO = $this->createMock(\App\DTOs\TransferDto::class);
+        $transferDTO->method('getReceiverId')->willReturn(2);
+        $transferDTO->method('getAmount')->willReturn(50.00);
+
+        $senderWallet = new class extends Wallet {
+            public $balance = 100;
+            public function decrement($column, $amount = 1, array $extra = []) { return true; }
+        };
+
+        $receiverWallet = new class extends Wallet {
+            public function increment($column, $amount = 1, array $extra = []) { return true; }
+        };
+
+        $sender = new User();
+        $sender->id = 1;
+        $sender->setRelation('wallet', $senderWallet);
+
+        $receiver = new User();
+        $receiver->id = 2;
+        $receiver->setRelation('wallet', $receiverWallet);
+
+        Auth::shouldReceive('user')->andReturn($sender);
+
+        $transactionRepository = $this->createMock(TransactionRepositoryInterface::class);
+        $transactionRepository->method('findUserById')->with(2)->willReturn($receiver);
+        $transactionRepository->method('createTransaction')->willReturn(new Transaction());
+
+        DB::shouldReceive('beginTransaction')->once();
+        DB::shouldReceive('commit')->once();
+        DB::shouldReceive('rollBack')->never();
+
+        $walletRepository = $this->createMock(WalletRepositoryInterface::class);
+
+        $service = new TransactionService($transactionRepository, $walletRepository);
+        $service->transfer($transferDTO);
+    }
+
 }
